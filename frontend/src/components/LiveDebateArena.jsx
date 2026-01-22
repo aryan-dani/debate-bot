@@ -11,8 +11,6 @@ const SAMPLE_TOPICS = [
     "The Future of Work: Automation vs Human Labor",
 ];
 
-const API_BASE_URL = "http://localhost:8000";
-
 function LiveDebateArena() {
     const [topic, setTopic] = useState("");
     const [hasStarted, setHasStarted] = useState(false);
@@ -61,7 +59,7 @@ function LiveDebateArena() {
             // Add current argument
             allHistory.push({ type: "user", text: argument });
 
-            const response = await fetch(`${API_BASE_URL}/api/live-counter`, {
+            const response = await fetch("/api/live-counter", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

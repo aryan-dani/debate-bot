@@ -18,7 +18,7 @@ function Scoring() {
         setError(null);
 
         try {
-            const response = await fetch("http://localhost:8000/api/score-argument", {
+            const response = await fetch("/api/score-argument", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
