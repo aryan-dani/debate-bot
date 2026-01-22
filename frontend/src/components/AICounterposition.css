@@ -1,0 +1,208 @@
+.ai-counterposition {
+    background: linear-gradient(180deg, var(--bg-primary) 0%, rgba(13, 20, 32, 1) 100%);
+    display: flex;
+    flex-direction: column;
+    min-height: calc(100vh - 200px);
+}
+
+.counter-header {
+    padding: 2rem 2rem 1.5rem;
+}
+
+.counter-title {
+    font-family: var(--font-heading);
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--pink-light);
+    margin-bottom: 0.5rem;
+    text-shadow: 0 0 40px rgba(236, 72, 153, 0.4);
+    letter-spacing: -0.02em;
+}
+
+.counter-subtitle {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.counter-content {
+    flex: 1;
+    padding: 1rem 1.5rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    overflow-y: auto;
+}
+
+/* Response Cards */
+.response-card {
+    background: linear-gradient(135deg, rgba(236, 72, 153, 0.08) 0%, rgba(17, 24, 39, 0.9) 100%);
+    border: 1px solid rgba(236, 72, 153, 0.2);
+    border-radius: 16px;
+    overflow: hidden;
+    animation: fadeInUp 0.4s ease-out;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.response-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--gradient-pink);
+}
+
+.response-card:hover {
+    border-color: rgba(236, 72, 153, 0.4);
+    box-shadow: 0 8px 32px rgba(236, 72, 153, 0.12);
+    transform: translateY(-2px);
+}
+
+.response-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.response-label {
+    font-family: var(--font-heading);
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--pink-primary);
+}
+
+.response-content {
+    padding: 1.25rem;
+}
+
+.response-content .point-label {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--pink-light);
+    margin-bottom: 0.65rem;
+    padding: 0.25rem 0.65rem;
+    background: rgba(236, 72, 153, 0.1);
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.response-text {
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    line-height: 1.75;
+}
+
+/* Response Points */
+.response-point {
+    padding: 1rem 0;
+    border-bottom: 1px solid rgba(236, 72, 153, 0.15);
+}
+
+.response-point:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.response-point:first-child {
+    padding-top: 0;
+}
+
+/* Analyzing Indicator */
+.analyzing-indicator {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    padding: 1.25rem 1.5rem;
+    background: linear-gradient(135deg, rgba(236, 72, 153, 0.1) 0%, rgba(17, 24, 39, 0.8) 100%);
+    border: 1px solid rgba(236, 72, 153, 0.25);
+    border-radius: 16px;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+.analyzing-dots {
+    display: flex;
+    gap: 6px;
+}
+
+.analyzing-dots span {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--pink-primary);
+    animation: bounce 1.4s ease-in-out infinite;
+    box-shadow: 0 0 10px var(--pink-glow);
+}
+
+.analyzing-dots span:nth-child(1) {
+    animation-delay: 0s;
+}
+
+.analyzing-dots span:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.analyzing-dots span:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes bounce {
+
+    0%,
+    80%,
+    100% {
+        transform: scale(0.6);
+        opacity: 0.5;
+    }
+
+    40% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.analyzing-text {
+    color: var(--pink-light);
+    font-size: 0.95rem;
+    font-weight: 500;
+}
+
+/* Empty State */
+.empty-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    padding: 3rem;
+}
+
+.empty-text {
+    color: var(--text-muted);
+    font-size: 1rem;
+    text-align: center;
+    line-height: 1.6;
+    max-width: 280px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .ai-counterposition {
+        min-height: auto;
+    }
+
+    .counter-header {
+        padding: 1.25rem;
+    }
+
+    .counter-content {
+        padding: 1rem;
+    }
+}
