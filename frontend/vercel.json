@@ -1,9 +1,8 @@
 {
-    "rewriteConfigs": true,
     "rewrites": [
         {
-            "source": "/api/(.*)",
-            "destination": "https://debatebot-5916.onrender.com/api/$1"
+            "source": "/api/:path*",
+            "destination": "https://debatebot-5916.onrender.com/api/:path*"
         },
         {
             "source": "/(.*)",
