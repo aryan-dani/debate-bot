@@ -1,34 +1,39 @@
-# 🔌 API Reference
+# API Reference
 
-The DebateBot backend exposes a RESTful API built with FastAPI. All endpoints return JSON.
+Spar with a Friend / DebateBot backend (FastAPI). All endpoints return JSON.
 
-**Base URL**: `http://127.0.0.1:8000` (Local)
+**Base URL**: `http://127.0.0.1:8000`
+
+When the LLM provider is not ready, generation endpoints return **503** with:
+```json
+{ "detail": { "error": "...", "checklist": ["..."], "provider": "ollama", "model": "llama3.2:3b", "local": true } }
+```
+
+## 0. Status & presets
+
+- `GET /api/status` — `{ provider, model, local, ready, checklist, detail, host }`
+- `GET /api/presets` — friend profile TODOs, campus topics, tones, difficulties, practice card
+- `GET /api/health` — `{ status: "healthy" }`
+- `GET /api/history` — recent local SQLite sessions
+- `GET /api/history/{id}` — one session with transcript + report
 
 ## 1. Debate Generation
-generate a full debate flow (Opening -> Rebuttal -> Closing) for a given topic.
+
+Full dual-AI debate via LangGraph (`opening_prop` → … → `closing_opp`).
 
 - **Endpoint**: `POST /api/debate`
 - **Request Body**:
   ```json
   {
-    "topic": "Social media does more harm than good"
-  }
-  ```
-- **Response**:
-  ```json
-  {
     "topic": "Social media does more harm than good",
-    "proposition": {
-      "opening": { "summary": "...", "full": "..." },
-      "rebuttal": { "summary": "...", "full": "..." },
-      "closing": { "summary": "...", "full": "..." }
-    },
-    "opposition": { ... }
+    "friend_mode": true,
+    "tone": "patient",
+    "difficulty": "beginner"
   }
   ```
+- **Response**: proposition/opposition opening/rebuttal/closing plus `practice_card`.
 
 ## 2. Live Debate Counter
-Generate a counter-argument for a specific round in the user-vs-AI mode.
 
 - **Endpoint**: `POST /api/live-counter`
 - **Request Body**:
@@ -36,76 +41,27 @@ Generate a counter-argument for a specific round in the user-vs-AI mode.
   {
     "topic": "string",
     "user_argument": "string",
-    "round": "opening" | "rebuttal" | "closing",
-    "argument_history": [
-      { "type": "user", "text": "..." },
-      { "type": "ai", "text": "..." }
-    ]
+    "round": "opening",
+    "argument_history": [{ "type": "user", "text": "..." }],
+    "friend_mode": true,
+    "tone": "patient",
+    "difficulty": "beginner"
   }
   ```
-- **Response**:
-  ```json
-  {
-    "counter_argument": "Full text string...",
-    "points": [
-      { "id": 1, "text": "First counter point..." },
-      { "id": 2, "text": "Second counter point..." }
-    ]
-  }
-  ```
+- **Response**: `{ "counter_argument": "...", "points": [...] }`
 
-## 3. Score Argument
-Analyze an argument and provide detailed scoring metrics.
+## 3. End-of-round report
+
+- **Endpoint**: `POST /api/round-report`
+- **Request Body**: `{ topic, user_turns, argument_history, tone, difficulty, friend_mode }`
+- **Response**: `{ report: { headline, did_well, try_next, filler_note }, session_id }`
+
+## 4. Score Argument
 
 - **Endpoint**: `POST /api/score-argument`
-- **Request Body**:
-  ```json
-  {
-    "argument": "The user's argument text...",
-    "topic": "The debate topic..."
-  }
-  ```
-- **Response**:
-  ```json
-  {
-    "coherence": 0.85,
-    "relevance": 0.9,
-    "evidenceStrength": 0.7,
-    "fallacyPenalty": 0.0,
-    "argumentStrength": 0.82,
-    "details": {
-       "fallaciesDetected": []
-    }
-  }
-  ```
+- **Request Body**: `{ "argument": "...", "topic": "...", "friend_mode": true }`
 
-## 4. Get Feedback
-Get actionable advice on how to improve an argument.
+## 5. Feedback
 
 - **Endpoint**: `POST /api/get-feedback`
-- **Request Body**:
-  ```json
-  {
-    "argument": "...",
-    "topic": "...",
-    "scores": { ... }, 
-    "target_score": 90
-  }
-  ```
-- **Response**:
-  ```json
-  {
-    "type": "improvement",
-    "message": "You are 8 points away from your target.",
-    "tips": [
-      {
-        "metric": "Evidence",
-        "tip": "Try adding a statistic to back up your second claim."
-      }
-    ]
-  }
-  ```
-
-## 5. Health Check
-- **Endpoint**: `GET /api/health`
-- **Response**: `{"status": "healthy"}`
+- **Request Body**: `{ argument, topic, scores, target_score, friend_mode }`

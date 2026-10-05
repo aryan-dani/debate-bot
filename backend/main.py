@@ -1,294 +1,212 @@
-import os
-from dotenv import load_dotenv
-from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+"""FastAPI entrypoint for Spar with a Friend / DebateBot."""
+
+from __future__ import annotations
+
+import json
+import re
+
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from graph import llm
+from pydantic import BaseModel, Field
 
-load_dotenv()
+from coaching import get_practice_card, get_presets_payload
+from graph import debate_graph, format_debate_response, live_graph, report_graph
+from history import get_session, init_db, list_sessions, save_session
+from llm_provider import (
+    ProviderNotReadyError,
+    get_model_name,
+    get_provider_name,
+    get_status,
+    invoke_llm,
+)
 
-app = FastAPI()
-
-origins = [
-    "http://127.0.0.1:5500",
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:5174",
-    "http://127.0.0.1:5174",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:8000",
-]
+app = FastAPI(title="Spar with a Friend", version="0.2.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for development
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
+
+@app.on_event("startup")
+def _startup() -> None:
+    init_db()
+
+
+def _provider_http_error(exc: ProviderNotReadyError) -> HTTPException:
+    return HTTPException(
+        status_code=503,
+        detail={
+            "error": exc.message,
+            "checklist": exc.checklist,
+            "provider": get_provider_name(),
+            "model": get_model_name(),
+            "local": get_provider_name() == "ollama",
+        },
+    )
+
+
 class DebateRequest(BaseModel):
     topic: str
+    friend_mode: bool = True
+    tone: str = "patient"
+    difficulty: str = "beginner"
 
-class DebateResponse(BaseModel):
+
+class LiveDebateRequest(BaseModel):
     topic: str
-    proposition: dict
-    opposition: dict
+    user_argument: str
+    round: str  # opening | rebuttal | closing
+    argument_history: list = Field(default_factory=list)
+    friend_mode: bool = True
+    tone: str = "patient"
+    difficulty: str = "beginner"
 
-def generate_argument(topic: str, side: str, stage: str, history: str = "") -> str:
-    """Generate a debate argument for a given side and stage."""
-    
-    if stage == "opening":
-        prompt = f"""You are presenting the {side} position in a formal debate.
-Motion: {topic}
 
-Write a strong opening statement (max 150 words) with 2-3 distinct arguments.
+class ScoringRequest(BaseModel):
+    argument: str
+    topic: str
+    friend_mode: bool = True
 
-IMPORTANT RULES:
-- Do NOT start with "Ladies and gentlemen" or similar greetings
-- Do NOT use phrases like "I believe" or "In my opinion"
-- Present arguments as factual claims with evidence
-- Use a direct, assertive tone
-- Jump straight into your first point
 
-Example format:
-"[First key claim]. [Supporting evidence or reasoning]. [Second point with evidence]. [Third point if needed]."
-"""
-    
-    elif stage == "rebuttal":
-        prompt = f"""You are presenting a rebuttal for the {side} position in a formal debate.
-Motion: {topic}
+class FeedbackRequest(BaseModel):
+    argument: str
+    topic: str
+    scores: dict
+    target_score: int
+    friend_mode: bool = True
 
-Arguments to counter:
-{history}
 
-Write a sharp rebuttal (max 150 words) addressing the opposing points.
+class RoundReportRequest(BaseModel):
+    topic: str
+    user_turns: list = Field(default_factory=list)
+    argument_history: list = Field(default_factory=list)
+    tone: str = "patient"
+    difficulty: str = "beginner"
+    friend_mode: bool = True
 
-IMPORTANT RULES:
-- Do NOT start with "While my opponent" or "My opponent claims"
-- Do NOT use "the opposition" or "they argue"
-- Instead, directly state why each claim is flawed
-- Present counter-evidence factually
-- Use phrases like "This overlooks...", "The evidence shows...", "In reality..."
-
-Example format:
-"The claim that [X] fails to account for [Y]. [Counter-evidence]. Furthermore, [next counter-point with evidence]."
-"""
-    
-    else:  # closing
-        prompt = f"""You are delivering a closing statement for the {side} position.
-Motion: {topic}
-
-Debate context:
-{history}
-
-Write a powerful closing (max 150 words) summarizing your strongest points.
-
-IMPORTANT RULES:
-- Do NOT start with "In conclusion" or "To summarize"
-- Do NOT use "Ladies and gentlemen" or "As I have shown"
-- Make a final compelling case with your best evidence
-- End with a strong declarative statement
-- Be assertive and confident
-
-Example format:
-"[Restate strongest point]. [Key evidence that proves your case]. [Why this matters]. [Strong final statement]."
-"""
-    
-    response = llm.invoke(prompt)
-    content = response.content
-    return str(content) if not isinstance(content, str) else content
-
-def get_summary(content: str, max_words: int = 25) -> str:
-    """Get first sentence or truncate to max words."""
-    sentences = content.split('.')
-    if sentences:
-        first_sentence = sentences[0].strip()
-        words = first_sentence.split()
-        if len(words) > max_words:
-            return ' '.join(words[:max_words]) + '...'
-        return first_sentence + '.'
-    return content[:150] + '...'
 
 @app.get("/")
 def read_root():
-    return {"message": "Debate Bot System Online"}
-
-@app.post("/api/debate")
-async def run_debate(request: DebateRequest):
-    """Run a full debate on the given topic."""
-    topic = request.topic
-    
-    # Generate Opening Arguments
-    prop_opening = generate_argument(topic, "Proposition", "opening")
-    opp_opening = generate_argument(topic, "Opposition", "opening")
-    
-    # Generate Rebuttals (each side rebuts the other's opening)
-    prop_rebuttal = generate_argument(topic, "Proposition", "rebuttal", opp_opening)
-    opp_rebuttal = generate_argument(topic, "Opposition", "rebuttal", prop_opening)
-    
-    # Generate Closing Arguments
-    prop_history = f"Your Opening: {prop_opening}\nOpponent's Rebuttal: {opp_rebuttal}"
-    opp_history = f"Your Opening: {opp_opening}\nOpponent's Rebuttal: {prop_rebuttal}"
-    
-    prop_closing = generate_argument(topic, "Proposition", "closing", prop_history)
-    opp_closing = generate_argument(topic, "Opposition", "closing", opp_history)
-    
+    status = get_status()
     return {
-        "topic": topic,
-        "proposition": {
-            "opening": {
-                "summary": get_summary(prop_opening),
-                "full": prop_opening
-            },
-            "rebuttal": {
-                "summary": get_summary(prop_rebuttal),
-                "full": prop_rebuttal
-            },
-            "closing": {
-                "summary": get_summary(prop_closing),
-                "full": prop_closing
-            }
-        },
-        "opposition": {
-            "opening": {
-                "summary": get_summary(opp_opening),
-                "full": opp_opening
-            },
-            "rebuttal": {
-                "summary": get_summary(opp_rebuttal),
-                "full": opp_rebuttal
-            },
-            "closing": {
-                "summary": get_summary(opp_closing),
-                "full": opp_closing
-            }
-        }
+        "message": "Spar with a Friend — DebateBot local coach online",
+        "provider": status["provider"],
+        "model": status["model"],
+        "local": status["local"],
+        "ready": status["ready"],
     }
+
 
 @app.get("/api/health")
 def health_check():
     return {"status": "healthy"}
 
 
-class LiveDebateRequest(BaseModel):
-    topic: str
-    user_argument: str
-    round: str  # "opening", "rebuttal", "closing"
-    argument_history: list = []  # Previous arguments in the debate
+@app.get("/api/status")
+def api_status():
+    return get_status()
 
 
-class LiveDebateResponse(BaseModel):
-    counter_argument: str
-    points: list
+@app.get("/api/presets")
+def api_presets():
+    return get_presets_payload()
+
+
+@app.get("/api/history")
+def api_history(limit: int = 20):
+    return {"sessions": list_sessions(limit=limit)}
+
+
+@app.get("/api/history/{session_id}")
+def api_history_detail(session_id: int):
+    session = get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return session
+
+
+@app.post("/api/debate")
+async def run_debate(request: DebateRequest):
+    """Run a full dual-AI debate via LangGraph."""
+    try:
+        result = debate_graph.invoke(
+            {
+                "topic": request.topic,
+                "side": "Proposition",
+                "friend_mode": request.friend_mode,
+                "tone": request.tone,
+                "difficulty": request.difficulty,
+                "argument_history": "",
+                "final_output": "",
+            }
+        )
+    except ProviderNotReadyError as exc:
+        raise _provider_http_error(exc) from exc
+
+    return format_debate_response(result)
 
 
 @app.post("/api/live-counter")
 async def generate_counter(request: LiveDebateRequest):
-    """Generate AI counter-argument for the user's position in live debate."""
-    topic = request.topic
-    user_argument = request.user_argument
-    round_type = request.round
-    history = request.argument_history
-    
-    # Build history context
-    history_context = ""
-    if history:
-        history_context = "\n\nPrevious points in this debate:\n"
-        for item in history:
-            if item.get("type") == "user":
-                history_context += f"PRO: {item.get('text', '')}\n"
-            else:
-                history_context += f"CON: {item.get('text', '')}\n"
-    
-    # Generate counter-argument based on round
-    if round_type == "opening":
-        prompt = f"""You are presenting the Opposition position in a live debate.
-Motion: {topic}
+    """Generate AI counter-argument for Live Arena via LangGraph."""
+    try:
+        result = live_graph.invoke(
+            {
+                "topic": request.topic,
+                "user_argument": request.user_argument,
+                "round": request.round,
+                "argument_history": request.argument_history,
+                "friend_mode": request.friend_mode,
+                "tone": request.tone,
+                "difficulty": request.difficulty,
+            }
+        )
+    except ProviderNotReadyError as exc:
+        raise _provider_http_error(exc) from exc
 
-Argument to counter:
-{user_argument}
-{history_context}
-
-Write a counter-argument (max 200 words) that directly challenges this position.
-
-IMPORTANT RULES:
-- Do NOT refer to "the user" or "my opponent" or "the speaker"
-- Do NOT start with greetings or "I would argue"
-- Present counter-points as factual claims
-- Use evidence and logical reasoning
-- Directly address and refute the specific claims made
-
-Format: Jump straight into your counter-arguments. State facts and evidence."""
-
-    elif round_type == "rebuttal":
-        prompt = f"""You are presenting a rebuttal in a live debate.
-Motion: {topic}
-
-Argument to counter:
-{user_argument}
-{history_context}
-
-Write a rebuttal (max 200 words) that dismantles this argument.
-
-IMPORTANT RULES:
-- Do NOT use "the user", "my opponent", "the previous speaker"
-- Do NOT start with "While..." or "Although..."
-- Identify specific flaws in the reasoning
-- Provide counter-evidence directly
-- Use phrases like "This fails because...", "The evidence contradicts...", "In fact..."
-
-Format: Directly address each claim with counter-evidence."""
-
-    else:  # closing
-        prompt = f"""You are delivering a closing counter-argument in a live debate.
-Motion: {topic}
-
-Final argument to counter:
-{user_argument}
-{history_context}
-
-Write a closing counter-argument (max 200 words).
-
-IMPORTANT RULES:
-- Do NOT use "In conclusion" or "To summarize"
-- Do NOT refer to "the user" or "my opponent"
-- Highlight the key weaknesses exposed in this debate
-- Make a final compelling case for your position
-- End with a strong declarative statement
-
-Format: Present your strongest counter-points with evidence. End powerfully."""
-
-    response = llm.invoke(prompt)
-    content = response.content
-    counter_text = str(content) if not isinstance(content, str) else content
-    
-    # Split into points for structured display
-    points = []
-    paragraphs = counter_text.strip().split('\n\n')
-    for i, para in enumerate(paragraphs):
-        if para.strip():
-            points.append({
-                "id": i + 1,
-                "text": para.strip()
-            })
-    
-    # If no clear paragraphs, treat whole response as one point
-    if not points:
-        points = [{"id": 1, "text": counter_text.strip()}]
-    
     return {
-        "counter_argument": counter_text,
-        "points": points
+        "counter_argument": result.get("counter_argument", ""),
+        "points": result.get("points") or [],
     }
 
 
-class ScoringRequest(BaseModel):
-    argument: str
-    topic: str
+@app.post("/api/round-report")
+async def round_report(request: RoundReportRequest):
+    """Short end-of-round coaching report + local SQLite save."""
+    try:
+        result = report_graph.invoke(
+            {
+                "topic": request.topic,
+                "user_turns": request.user_turns,
+                "tone": request.tone,
+                "difficulty": request.difficulty,
+            }
+        )
+    except ProviderNotReadyError as exc:
+        raise _provider_http_error(exc) from exc
+
+    report = result.get("report") or {}
+    session_id = save_session(
+        provider=get_provider_name(),
+        model=get_model_name(),
+        topic=request.topic,
+        tone=request.tone,
+        difficulty=request.difficulty,
+        transcript={
+            "user_turns": request.user_turns,
+            "argument_history": request.argument_history,
+        },
+        report=report,
+    )
+    return {
+        "report": report,
+        "session_id": session_id,
+        "practice_card": get_practice_card(request.topic),
+    }
 
 
 @app.post("/api/score-argument")
@@ -296,8 +214,13 @@ async def score_argument(request: ScoringRequest):
     """Score a debate argument based on multiple metrics using AI analysis."""
     argument = request.argument
     topic = request.topic
-    
-    # Use LLM to analyze the argument with specific quotes
+
+    friend_note = ""
+    if request.friend_mode:
+        friend_note = (
+            "Also note filler words and structure. Keep reasons kind and specific."
+        )
+
     scoring_prompt = f"""You are an expert debate judge. Analyze this argument IN DETAIL.
 
 TOPIC: {topic}
@@ -306,15 +229,16 @@ ARGUMENT TO ANALYZE:
 "{argument}"
 
 Provide a thorough analysis with SPECIFIC QUOTES from the argument. For each metric, cite exactly which phrases led to your score.
+{friend_note}
 
 Respond in this EXACT JSON format:
 {{
     "coherence": 0.XX,
-    "coherence_reason": "Quote the specific phrases that show good/poor flow. Example: 'The transition from X to Y was abrupt' or 'The phrase \"therefore\" effectively connects ideas'",
+    "coherence_reason": "Quote the specific phrases that show good/poor flow. Example: 'The transition from X to Y was abrupt' or 'The phrase \\"therefore\\" effectively connects ideas'",
     "relevance": 0.XX,
     "relevance_reason": "Quote which parts directly address the topic and which parts drift off-topic",
     "evidence_strength": 0.XX,
-    "evidence_reason": "List the specific evidence/facts cited. If none: 'No concrete evidence provided - claims like \"X\" lack supporting data'",
+    "evidence_reason": "List the specific evidence/facts cited. If none: 'No concrete evidence provided - claims like \\"X\\" lack supporting data'",
     "fallacy_penalty": 0.XX,
     "fallacy_reason": "Quote the exact phrases containing fallacies, or say 'No fallacies detected'",
     "sentence_count": N,
@@ -327,34 +251,31 @@ Respond in this EXACT JSON format:
 Be specific. Quote exact phrases. Don't give generic feedback."""
 
     try:
-        response = llm.invoke(scoring_prompt)
-        content = response.content
-        
-        import json
-        import re
-        
-        json_match = re.search(r'\{[\s\S]*\}', str(content))
+        content = invoke_llm(scoring_prompt)
+        json_match = re.search(r"\{[\s\S]*\}", str(content))
         if json_match:
             scores = json.loads(json_match.group())
         else:
             raise ValueError("Could not parse scoring response")
-        
-        # Ensure all values are within bounds
+
         scores["coherence"] = max(0, min(1, float(scores.get("coherence", 0.7))))
         scores["relevance"] = max(0, min(1, float(scores.get("relevance", 0.7))))
-        scores["evidence_strength"] = max(0, min(1, float(scores.get("evidence_strength", 0.6))))
-        scores["fallacy_penalty"] = max(0, min(1, float(scores.get("fallacy_penalty", 0.1))))
-        
-        # Calculate argument strength using weighted sum
+        scores["evidence_strength"] = max(
+            0, min(1, float(scores.get("evidence_strength", 0.6)))
+        )
+        scores["fallacy_penalty"] = max(
+            0, min(1, float(scores.get("fallacy_penalty", 0.1)))
+        )
+
         w1, w2, w3, w4 = 0.25, 0.30, 0.30, 0.15
         argument_strength = (
-            w1 * scores["coherence"] +
-            w2 * scores["relevance"] +
-            w3 * scores["evidence_strength"] -
-            w4 * scores["fallacy_penalty"]
+            w1 * scores["coherence"]
+            + w2 * scores["relevance"]
+            + w3 * scores["evidence_strength"]
+            - w4 * scores["fallacy_penalty"]
         )
         argument_strength = max(0, min(1, argument_strength))
-        
+
         return {
             "coherence": scores["coherence"],
             "coherenceReason": scores.get("coherence_reason", ""),
@@ -368,12 +289,16 @@ Be specific. Quote exact phrases. Don't give generic feedback."""
             "strongestPoint": scores.get("strongest_point", ""),
             "weakestPoint": scores.get("weakest_point", ""),
             "details": {
-                "sentenceCount": scores.get("sentence_count", len(argument.split('.'))),
+                "sentenceCount": scores.get(
+                    "sentence_count", len(argument.split("."))
+                ),
                 "evidenceCount": scores.get("evidence_count", 0),
-                "fallaciesDetected": scores.get("fallacies", [])
-            }
+                "fallaciesDetected": scores.get("fallacies", []),
+            },
         }
-        
+
+    except ProviderNotReadyError as exc:
+        raise _provider_http_error(exc) from exc
     except Exception as e:
         print(f"Error scoring argument: {e}")
         return {
@@ -389,18 +314,11 @@ Be specific. Quote exact phrases. Don't give generic feedback."""
             "strongestPoint": "",
             "weakestPoint": "",
             "details": {
-                "sentenceCount": len(argument.split('.')),
+                "sentenceCount": len(argument.split(".")),
                 "evidenceCount": 0,
-                "fallaciesDetected": []
-            }
+                "fallaciesDetected": [],
+            },
         }
-
-
-class FeedbackRequest(BaseModel):
-    argument: str
-    topic: str
-    scores: dict
-    target_score: int
 
 
 @app.post("/api/get-feedback")
@@ -412,8 +330,15 @@ async def get_feedback(request: FeedbackRequest):
     target_score = request.target_score
     current_score = int(scores.get("argumentStrength", 0.7) * 100)
     gap = target_score - current_score
-    
+
+    style = (
+        "Be kind, specific, and actionable. Short tips only."
+        if request.friend_mode
+        else "Be concise and practical."
+    )
+
     feedback_prompt = f"""You are an expert debate coach helping someone improve their argumentation skills.
+{style}
 
 TOPIC: {topic}
 
@@ -446,52 +371,56 @@ Respond in this EXACT JSON format:
 Provide 2-3 tips focusing on the metrics with the lowest scores. Be concise and practical."""
 
     try:
-        response = llm.invoke(feedback_prompt)
-        content = response.content
-        
-        import json
-        import re
-        
-        json_match = re.search(r'\{[\s\S]*\}', str(content))
+        content = invoke_llm(feedback_prompt)
+        json_match = re.search(r"\{[\s\S]*\}", str(content))
         if json_match:
-            feedback = json.loads(json_match.group())
-            return feedback
-        else:
-            raise ValueError("Could not parse feedback")
-            
+            return json.loads(json_match.group())
+        raise ValueError("Could not parse feedback")
+
+    except ProviderNotReadyError as exc:
+        raise _provider_http_error(exc) from exc
     except Exception as e:
         print(f"Error getting feedback: {e}")
-        # Generate fallback feedback
         tips = []
         if scores.get("coherence", 1) < 0.75:
-            tips.append({
-                "metric": "Coherence",
-                "tip": "Connect your ideas more clearly. Use transition words like 'therefore', 'however', 'furthermore' to link sentences."
-            })
+            tips.append(
+                {
+                    "metric": "Coherence",
+                    "tip": "Connect your ideas more clearly. Use transition words like 'therefore', 'however', 'furthermore' to link sentences.",
+                }
+            )
         if scores.get("relevance", 1) < 0.8:
-            tips.append({
-                "metric": "Relevance",
-                "tip": "Stay focused on the debate topic. Make sure each point directly addresses the motion."
-            })
+            tips.append(
+                {
+                    "metric": "Relevance",
+                    "tip": "Stay focused on the debate topic. Make sure each point directly addresses the motion.",
+                }
+            )
         if scores.get("evidenceStrength", 1) < 0.7:
-            tips.append({
-                "metric": "Evidence",
-                "tip": "Add specific examples, statistics, or expert citations to strengthen your claims."
-            })
+            tips.append(
+                {
+                    "metric": "Evidence",
+                    "tip": "Add specific examples, statistics, or expert citations to strengthen your claims.",
+                }
+            )
         if scores.get("fallacyPenalty", 0) > 0.1:
-            tips.append({
-                "metric": "Logic",
-                "tip": "Avoid emotional appeals and stick to evidence-based reasoning. Check for common fallacies."
-            })
-        
+            tips.append(
+                {
+                    "metric": "Logic",
+                    "tip": "Avoid emotional appeals and stick to evidence-based reasoning. Check for common fallacies.",
+                }
+            )
+
         if not tips:
-            tips.append({
-                "metric": "Overall",
-                "tip": "Add more depth and specificity to your arguments. Consider addressing potential counterarguments."
-            })
-        
+            tips.append(
+                {
+                    "metric": "Overall",
+                    "tip": "Add more depth and specificity to your arguments. Consider addressing potential counterarguments.",
+                }
+            )
+
         return {
             "type": "improvement",
             "message": f"You need {gap} more points to reach your target. Here's how:",
-            "tips": tips[:3]
+            "tips": tips[:3],
         }

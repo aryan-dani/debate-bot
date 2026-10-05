@@ -1,58 +1,83 @@
-# DebateBot
+# DebateBot → Spar with a Friend
 
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Python](https://img.shields.io/badge/python-3.12-blue)
 ![React](https://img.shields.io/badge/react-18-blue)
-![Build Status](https://img.shields.io/badge/build-passing-brightgreen)
+![Local](https://img.shields.io/badge/LLM-Ollama%20local-cyan)
 
-DebateBot is an intelligent debating platform powered by **LLaMA 3.3 70B** and **LangGraph**. It goes beyond simple chat interfaces by orchestrating complex, multi-stage debates between AI agents and conducting live debates where users can challenge the AI directly.
+**DebateBot** is the base project. The hackathon product is **Spar with a Friend**: a local, open-weight practice partner so a friend can rehearse debates and GDs without sending speech to a cloud chat app.
+
+Open-source AI at the core:
+
+- **Open-weight model** via [Ollama](https://ollama.com) (default `llama3.2:3b`)
+- **Open agent harness** via [LangGraph](https://langchain-ai.github.io/langgraph/) (Opening → Rebuttal → Closing + Live Arena)
+- Optional Groq cloud fallback only — **never required** to run the demo
+
+---
+
+## Friend story (fill before handoff)
+
+| Field | Value |
+|-------|--------|
+| Name | `TODO_FRIEND_NAME` |
+| Relation | `TODO_RELATION` |
+| Problem | Freezes in group discussions; needs patient GD/viva practice |
+| Constraints | Weak laptop, no paid APIs, no cloud transcripts |
+| Success | Finish a 10-min practice round and get kind, specific feedback |
+
+Edit [`backend/coaching.py`](backend/coaching.py) to replace the TODOs.
 
 ---
 
 ## Key Features
 
-- **Dual-AI Debates**: Observes comprehensive debates unfold through formal stages (Opening, Rebuttal, Closing).
-- **Live Arena**: Allows users to debate against the AI with real-time responses.
-- **Smart Scoring**: Provides detailed feedback on coherence, evidence usage, and logical fallacies.
-- **Real-Time Streaming**: Delivers fluid argument generation with low latency.
-
-[Read Detailed Features](docs/features.md)
-
----
-
-## Documentation
-
-Comprehensive documentation is available to assist with building and deploying DebateBot.
-
-| Topic                                | Description                                          |
-| ------------------------------------ | ---------------------------------------------------- |
-| [Architecture](docs/architecture.md) | System diagrams, data flow, and component breakdown. |
-| [Tech Stack](docs/tech_stack.md)     | Details on Python, FastAPI, React, and Groq.         |
-| [API Reference](docs/api.md)         | Endpoints for debates, scoring, and feedback.        |
-| [Deployment](docs/deployment.md)     | Guides for deploying to Render and Vercel.           |
+- **Friend Practice setup**: one screen for provider status, tone, difficulty, campus presets, practice card
+- **Live Arena**: user vs local AI through Opening / Rebuttal / Closing
+- **Dual-AI Debates**: watch Proposition vs Opposition (still LangGraph-driven)
+- **End-of-round report**: short, kind feedback saved to local SQLite
+- **Local mode badge**: UI shows `Local · Ollama` when running offline-capable inference
 
 ---
 
-## Quick Start
+## Quick Start (Windows + Linux/macOS)
 
 ### Prerequisites
 
 - Python 3.12+
 - Node.js 18+
-- [Groq API Key](https://console.groq.com)
+- [Ollama](https://ollama.com) installed and running
+- **No** `GROQ_API_KEY` needed for the default path
 
-### 1. Backend Setup
+### 0. Pull the local model
 
 ```bash
-cd backend
-python -m venv venv
-# Windows: venv\Scripts\activate | Mac/Linux: source venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env # Add your GROQ_API_KEY
-python -m uvicorn main:app --reload
+ollama pull llama3.2:3b
 ```
 
-### 2. Frontend Setup
+(~2GB download; fits an 8GB laptop. For tighter RAM: `ollama pull llama3.2:1b`)
+
+### 1. Backend
+
+```bash
+# from repo root
+cp .env.example .env
+# Windows PowerShell: Copy-Item .env.example .env
+
+cd backend
+python -m venv venv
+
+# Windows:
+venv\Scripts\activate
+# macOS / Linux:
+# source venv/bin/activate
+
+pip install -r requirements.txt
+python -m uvicorn main:app --reload --host 127.0.0.1 --port 8000
+```
+
+Confirm: open `http://127.0.0.1:8000/api/status` — `"provider":"ollama"`, `"ready":true`.
+
+### 2. Frontend
 
 ```bash
 cd frontend
@@ -60,14 +85,66 @@ npm install
 npm run dev
 ```
 
-Visit `http://localhost:5173` to start debating.
+Visit `http://localhost:5173` → **Start friend practice**.
+
+### Offline after models are pulled
+
+Once Ollama and `llama3.2:3b` are local, disconnect from the internet and run a full Live Arena round. With `LLM_PROVIDER=ollama`, transcripts stay on this machine.
+
+---
+
+## Optional Groq fallback
+
+Only if you explicitly want cloud speed:
+
+```env
+LLM_PROVIDER=groq
+GROQ_API_KEY=...
+LLM_MODEL=llama-3.3-70b-versatile
+```
+
+The app will **not** silently call Groq when Ollama is down.
+
+---
+
+## Smoke test
+
+```bash
+# with backend running on :8000
+python scripts/smoke_local.py
+```
+
+Manual checklist:
+
+1. `ollama pull llama3.2:3b`
+2. Start backend + frontend (no `GROQ_API_KEY`)
+3. Complete Opening → Rebuttal → Closing in Live Arena **or** one dual-AI debate
+4. See end-of-round report / scoring feedback
+5. Confirm navbar shows **Local · Ollama**
+
+---
+
+## Documentation
+
+| Topic | Description |
+|-------|-------------|
+| [Architecture](docs/architecture.md) | LangGraph + Ollama data flow |
+| [Tech Stack](docs/tech_stack.md) | Python, FastAPI, React, Ollama |
+| [API Reference](docs/api.md) | Endpoints |
+| [SUBMISSION.md](SUBMISSION.md) | Hackathon paste-ready writeup |
+
+---
+
+## Screenshots
+
+_Add screenshots of Practice setup, Live Arena, and end-of-round report here._
 
 ---
 
 ## Contributing
 
-We welcome contributions. Please check the [Issues](https://github.com/Krish1342/DebateBot/issues) page for current tasks or to report bugs.
+See [CONTRIBUTING.md](CONTRIBUTING.md) and [Issues](https://github.com/Krish1342/DebateBot/issues).
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+MIT — see LICENSE.

@@ -235,6 +235,29 @@
   transform: translateY(0) scale(1);
 }
 
+.error-checklist {
+  text-align: left;
+  max-width: 480px;
+  margin: 0.75rem auto 1rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.debate-practice-card {
+  max-width: 720px;
+  margin: 0 auto 1.5rem;
+  padding: 1rem 1.25rem;
+  border-radius: 12px;
+  border: 1px solid rgba(6, 182, 212, 0.35);
+  background: rgba(6, 182, 212, 0.08);
+  color: var(--text-secondary);
+}
+
+.debate-practice-card ol {
+  margin: 0.5rem 0 0;
+  padding-left: 1.2rem;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .app {

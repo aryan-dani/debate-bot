@@ -26,14 +26,20 @@ function Scoring() {
                 body: JSON.stringify({
                     argument: argumentText,
                     topic: topicText,
+                    friend_mode: true,
                 }),
             });
 
+            const data = await response.json().catch(() => ({}));
             if (!response.ok) {
-                throw new Error("Failed to analyze argument");
+                const detail = data.detail || data;
+                const msg =
+                    (typeof detail === "object" && detail.error) ||
+                    (typeof detail === "string" && detail) ||
+                    "Failed to analyze argument";
+                throw new Error(msg);
             }
 
-            const data = await response.json();
             setResults(data);
 
             // Add to history

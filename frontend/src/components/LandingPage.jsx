@@ -6,22 +6,22 @@ function LandingPage() {
 
     const features = [
         {
-            id: "ai-debate",
-            icon: "🎯",
-            title: "AI Debate",
+            id: "practice",
+            icon: "🤝",
+            title: "Friend Practice",
             description:
-                "Generate comprehensive dual-sided debates on any topic. Our AI creates compelling arguments from both Proposition and Opposition perspectives.",
-            highlights: ["Opening Arguments", "Rebuttals", "Closing Statements"],
+                "One-screen setup for patient GD/viva coaching. Local Ollama by default so speech never leaves this laptop.",
+            highlights: ["Practice card tips", "Tone & difficulty", "End-of-round report"],
             color: "cyan",
-            path: "/debate",
+            path: "/setup",
         },
         {
             id: "live-arena",
             icon: "⚔️",
             title: "Live Arena",
             description:
-                "Step into the arena and debate against AI in real-time. Present your position and receive intelligent counterarguments.",
-            highlights: ["Real-time Responses", "Dynamic Counterpoints", "Interactive Experience"],
+                "Debate against a local open-weight model through Opening, Rebuttal, and Closing — LangGraph orchestrated.",
+            highlights: ["Real-time Responses", "Patient coach tone", "Offline-friendly"],
             color: "pink",
             path: "/live-arena",
         },
@@ -30,7 +30,7 @@ function LandingPage() {
             icon: "📊",
             title: "Training & Scoring",
             description:
-                "Sharpen your debate skills with AI-powered analysis. Get detailed feedback and scoring on your argumentation techniques.",
+                "Kind, specific feedback on coherence, evidence, fallacies, and filler words.",
             highlights: ["Performance Metrics", "Skill Assessment", "Improvement Tips"],
             color: "gradient",
             path: "/scoring",
@@ -39,7 +39,6 @@ function LandingPage() {
 
     return (
         <div className="landing-page">
-            {/* Hero Section */}
             <section className="hero-section">
                 <div className="hero-background">
                     <div className="hero-orb hero-orb-1"></div>
@@ -47,27 +46,29 @@ function LandingPage() {
                 </div>
 
                 <div className="hero-content">
+                    <p className="hero-kicker">Spar with a Friend · built on DebateBot</p>
                     <h1 className="hero-title">
-                        Master the Art of
-                        <span className="hero-highlight"> Debate </span>
-                        with AI
+                        Local debate practice for
+                        <span className="hero-highlight"> TODO_FRIEND_NAME </span>
                     </h1>
                     <p className="hero-subtitle">
-                        Sharpen your argumentation skills, explore multiple perspectives, and become a more persuasive communicator with our AI-powered debate platform.
+                        Built for someone who freezes in group discussions. An open-weight
+                        Ollama model + LangGraph coach runs on this machine so rehearsal
+                        speech is not sent to a cloud chat app.
                     </p>
                     <div className="hero-cta">
                         <button
                             className="cta-primary"
-                            onClick={() => navigate("/debate")}
+                            onClick={() => navigate("/setup")}
                         >
-                            Start Debating
+                            Start friend practice
                             <span className="cta-arrow">→</span>
                         </button>
                         <button
                             className="cta-secondary"
                             onClick={() => navigate("/live-arena")}
                         >
-                            Try Live Arena
+                            Open Live Arena
                         </button>
                     </div>
                 </div>
@@ -79,23 +80,22 @@ function LandingPage() {
                     </div>
                     <div className="stat-divider"></div>
                     <div className="stat-item">
-                        <span className="stat-number">2</span>
-                        <span className="stat-label">Perspectives</span>
+                        <span className="stat-number">Local</span>
+                        <span className="stat-label">Ollama first</span>
                     </div>
                     <div className="stat-divider"></div>
                     <div className="stat-item">
-                        <span className="stat-number">∞</span>
-                        <span className="stat-label">Topics</span>
+                        <span className="stat-number">GD</span>
+                        <span className="stat-label">Campus presets</span>
                     </div>
                 </div>
             </section>
 
-            {/* Features Section */}
             <section className="features-section">
                 <div className="section-header">
                     <h2 className="section-title">What We Offer</h2>
                     <p className="section-subtitle">
-                        Three powerful tools to transform your debate capabilities
+                        Friend-first practice, then the classic DebateBot tools
                     </p>
                 </div>
 

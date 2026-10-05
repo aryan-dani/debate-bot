@@ -60,6 +60,28 @@
   gap: 0.25rem;
 }
 
+.nav-mode-badge {
+  margin-left: 0.35rem;
+  margin-right: 0.35rem;
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.nav-mode-badge.local {
+  background: rgba(6, 182, 212, 0.2);
+  color: var(--cyan-light);
+  border: 1px solid rgba(6, 182, 212, 0.35);
+}
+
+.nav-mode-badge.cloud {
+  background: rgba(236, 72, 153, 0.15);
+  color: var(--pink-light);
+  border: 1px solid rgba(236, 72, 153, 0.35);
+}
+
 .nav-link {
   font-family: var(--font-body);
   font-size: 0.9rem;

@@ -5,13 +5,13 @@ import "./Navbar.css";
 function Navbar() {
     const [isVisible, setIsVisible] = useState(true);
     const [lastScrollY, setLastScrollY] = useState(0);
+    const [status, setStatus] = useState(null);
     const location = useLocation();
 
     useEffect(() => {
         const handleScroll = () => {
             const currentScrollY = window.scrollY;
 
-            // Show navbar when at top or scrolling up
             if (currentScrollY < 50) {
                 setIsVisible(true);
             } else if (currentScrollY < lastScrollY) {
@@ -27,11 +27,30 @@ function Navbar() {
         return () => window.removeEventListener("scroll", handleScroll);
     }, [lastScrollY]);
 
-    // Reset visibility on route change
     useEffect(() => {
         setIsVisible(true);
         setLastScrollY(0);
     }, [location]);
+
+    useEffect(() => {
+        let cancelled = false;
+        async function loadStatus() {
+            try {
+                const res = await fetch("/api/status");
+                if (!res.ok) return;
+                const data = await res.json();
+                if (!cancelled) setStatus(data);
+            } catch {
+                /* backend may be down during first paint */
+            }
+        }
+        loadStatus();
+        const id = setInterval(loadStatus, 10000);
+        return () => {
+            cancelled = true;
+            clearInterval(id);
+        };
+    }, []);
 
     return (
         <nav className={`navbar ${isVisible ? "visible" : "hidden"}`}>
@@ -42,6 +61,12 @@ function Navbar() {
                         className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}
                     >
                         Home
+                    </NavLink>
+                    <NavLink
+                        to="/setup"
+                        className={({ isActive }) => `nav-link ${isActive ? "active" : ""}`}
+                    >
+                        Practice
                     </NavLink>
                     <NavLink
                         to="/debate"
@@ -62,6 +87,14 @@ function Navbar() {
                         Training
                     </NavLink>
                 </div>
+                {status && (
+                    <span
+                        className={`nav-mode-badge ${status.local ? "local" : "cloud"}`}
+                        title={status.ready ? status.model : status.detail || "Not ready"}
+                    >
+                        {status.local ? "Local · Ollama" : "Cloud · Groq"}
+                    </span>
+                )}
             </div>
         </nav>
     );
