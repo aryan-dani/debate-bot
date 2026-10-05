@@ -19,13 +19,13 @@ Open-source AI at the core:
 
 | Field | Value |
 |-------|--------|
-| Name | `TODO_FRIEND_NAME` |
-| Relation | `TODO_RELATION` |
+| Name | Sobaan |
+| Relation | debate classmate |
 | Problem | Freezes in group discussions; needs patient GD/viva practice |
 | Constraints | Weak laptop, no paid APIs, no cloud transcripts |
 | Success | Finish a 10-min practice round and get kind, specific feedback |
 
-Edit [`backend/coaching.py`](backend/coaching.py) to replace the TODOs.
+Friend profile lives in [`backend/coaching.py`](backend/coaching.py).
 
 ---
 

@@ -49,7 +49,7 @@ function LandingPage() {
                     <p className="hero-kicker">Spar with a Friend · built on DebateBot</p>
                     <h1 className="hero-title">
                         Local debate practice for
-                        <span className="hero-highlight"> TODO_FRIEND_NAME </span>
+                        <span className="hero-highlight"> Sobaan </span>
                     </h1>
                     <p className="hero-subtitle">
                         Built for someone who freezes in group discussions. An open-weight

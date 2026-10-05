@@ -84,8 +84,8 @@ function PracticeSetup() {
         <h1 className="setup-title">Spar with a Friend</h1>
         <p className="setup-subtitle">
           Local open-weight practice for{" "}
-          <strong>{friend?.name || "TODO_FRIEND_NAME"}</strong> (
-          {friend?.relation || "TODO_RELATION"}) — rehearse GDs without sending
+          <strong>{friend?.name || "Sobaan"}</strong> (
+          {friend?.relation || "debate classmate"}) — rehearse GDs without sending
           speech to a cloud chat app.
         </p>
       </header>

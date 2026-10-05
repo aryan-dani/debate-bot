@@ -1,14 +1,13 @@
 """Friend coaching profile, presets, tone/difficulty, and practice card.
 
 Edit this file to change coach behavior without rewriting the app.
-Fill TODO_FRIEND_NAME / TODO_RELATION before the handoff demo.
 """
 
 from __future__ import annotations
 
 # --- Friend brief (fill before handoff; do not invent a biography) ---
-TODO_FRIEND_NAME = "TODO_FRIEND_NAME"  # first name only
-TODO_RELATION = "TODO_RELATION"  # e.g. roommate / classmate / debate-club mate
+TODO_FRIEND_NAME = "Sobaan"  # first name only
+TODO_RELATION = "debate classmate"
 
 FRIEND_PROBLEM = (
     "Freezes in group discussions; needs patient GD/viva practice "

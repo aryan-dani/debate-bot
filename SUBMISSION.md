@@ -4,8 +4,8 @@ Paste / adapt this for the hackathon form.
 
 ## Who the friend is
 
-- **First name:** `TODO_FRIEND_NAME`
-- **Relation:** `TODO_RELATION` (roommate / classmate / debate-club mate / placement prep friend)
+- **First name:** Sobaan
+- **Relation:** debate classmate
 
 ## What problem we solved
 
@@ -30,4 +30,4 @@ No internet required after the model is pulled. No `GROQ_API_KEY` required.
 
 ## What they said after trying it
 
-> TODO: quote their reaction after the handoff demo.
+No invented quote. Sobaan is a debate classmate who freezes when a GD or viva starts, and this build is the private rehearsal room for that. A made-up testimonial would put words in his mouth.
